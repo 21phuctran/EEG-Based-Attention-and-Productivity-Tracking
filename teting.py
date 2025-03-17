@@ -1,138 +1,30 @@
-# Import necessary libraries
-import time
-import random
 import numpy as np
-from psychopy import visual, core, event, sound
-from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds
+import matplotlib.pyplot as plt
 
-# EEG Setup (BrainFlow)
-params = BrainFlowInputParams()
-board_id = BoardIds.SYNTHETIC_BOARD.value  # Change this to your actual board ID
-board = BoardShim(board_id, params)
-sampling_rate = BoardShim.get_sampling_rate(board_id)  # EEG Sampling rate
-eeg_channels = BoardShim.get_eeg_channels(board_id)  # EEG Channels list
+# Load the EEG data
+filename = r"C:\Users\pct001\EEG-Based-Attention-and-Productivity-Tracking\eeg_experiment_data.npy" # Replace with your actual file name
+eeg_data = np.load(filename, allow_pickle=True).item()
 
-# Prepare EEG session
-board.prepare_session()
-board.start_stream()
-print("EEG Data Streaming Started!")
+# Print the data structure
+print("EEG Data Structure:", eeg_data.keys())
 
-# Experiment Setup (PsychoPy)
-# Create a window for displaying stimuli
-window = visual.Window(fullscr=False, color="black")
+# Plot EEG data for one condition and trial
+condition = list(eeg_data.keys())[0]  # Select the first condition
+trial_idx = 0  # Select the first trial
 
-# Function to display a message
-def display_message(text, duration=3):
-    message = visual.TextStim(window, text=text, color="white", height=0.08)
-    message.draw()
-    window.flip()
-    core.wait(duration)
+# Convert to numpy array for plotting
+eeg_trial_data = np.array(eeg_data[condition]["trials"][trial_idx])
 
-# Baseline Recording (Resting State)
-def run_baseline():
-    print("Running Baseline Recording (30s)...")
-    display_message("+", duration=30)  # Fixation cross for 30s
-    return board.get_board_data()  # Collect EEG data
+# Plot EEG signals (assuming channels are along the first axis)
+plt.figure(figsize=(12, 6))
+for i in range(eeg_trial_data.shape[0]):  # Iterate over channels
+    plt.plot(eeg_trial_data[i, :], label=f"Channel {i+1}")
 
-# Pre-trial EEG Recording (Capturing Preparatory Activity)
-def run_pre_trial():
-    print("Running Pre-Trial EEG (10s)...")
-    display_message("Get ready...", duration=10)  # 10-second pre-trial wait
-    return board.get_board_data()  # Collect EEG data
+plt.xlabel("Time (samples)")
+plt.ylabel("EEG Signal (µV)")
+plt.title(f"EEG Data - {condition} (Trial {trial_idx+1})")
+plt.legend()
+plt.show()
 
-# Self-Report Validation
-def run_self_report():
-    display_message("How focused were you? (1 = Distracted, 5 = Focused)", duration=2)
-    response = event.waitKeys(maxWait=10, keyList=['1', '2', '3', '4', '5'])
-    return response[0] if response else "No Response"
 
-# Task Conditions
-# Condition 1: High Attention (Reading a Scientific Article)
-def run_high_attention():
-    print("Running High Attention Task...")
-    run_pre_trial()
 
-    article_text = "Scientific research shows that quick decision-making is linked to cognitive confidence..."
-    article_stim = visual.TextStim(window, text=article_text, color="white", height=0.06, wrapWidth=1.5, alignText="left")
-    article_stim.draw()
-    window.flip()
-    core.wait(60)  # Display article for 60 seconds
-    
-    return board.get_board_data()
-
-# Condition 2: Low Attention (Listening to Music)
-def run_low_attention():
-    print("Running Low Attention Task...")
-    run_pre_trial()
-
-    music = sound.Sound("lofi_jazz_background_music.wav")
-    music.play()
-
-    display_message("+", duration=60)  # Fixation cross while listening
-    
-    music.stop()
-    return board.get_board_data()
-
-# Condition 3: Fatigue (Continuous Arithmetic)
-def run_fatigue():
-    print("Running Fatigue Task...")
-    run_pre_trial()
-
-    start_time = core.getTime()
-    while core.getTime() - start_time < 60:
-        problem_text = f"{random.randint(10, 99)} + {random.randint(10, 99)} = ?"
-        problem_stim = visual.TextStim(window, text=problem_text, color="white", height=0.1)
-        problem_stim.draw()
-        window.flip()
-        core.wait(5)
-
-    return board.get_board_data()
-
-# Experiment Loop
-def run_experiment():
-    conditions = ['HighAttention', 'LowAttention', 'Fatigue']
-    random.shuffle(conditions)  # Randomize condition order
-    all_data = {}  # Store EEG data
-
-    for condition in conditions:
-        print(f"Starting Condition: {condition}")
-
-        # Baseline Recording
-        baseline_data = run_baseline()
-
-        # Run the selected condition
-        if condition == 'HighAttention':
-            task_data = run_high_attention()
-        elif condition == 'LowAttention':
-            task_data = run_low_attention()
-        elif condition == 'Fatigue':
-            task_data = run_fatigue()
-
-        # Self-report validation
-        focus_rating = run_self_report()
-        
-        # Save data
-        all_data[condition] = {
-            "baseline": baseline_data,
-            "task": task_data,
-            "self_report": focus_rating
-        }
-
-        # Break between conditions
-        display_message("Take a short break (10s)...", duration=10)
-
-    return all_data
-
-# Run the experiment and collect EEG data
-eeg_results = run_experiment()
-
-# Stop EEG streaming and save data
-board.stop_stream()
-board.release_session()
-np.save("eeg_experiment_data.npy", eeg_results)
-print("EEG data saved!")
-
-# End Experiment
-display_message("Thank you for participating!", duration=4)
-window.close()
-core.quit()

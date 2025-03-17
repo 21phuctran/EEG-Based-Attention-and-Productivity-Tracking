@@ -1,73 +1,173 @@
+# Import necessary libraries
 import time
+import random
 import numpy as np
-import matplotlib.pyplot as plt
+import datetime
+import os
+from psychopy import visual, core, event, sound
 from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds
 
-# BrainFlow Setup for OpenBCI Synthetic Board
+# EEG Setup (BrainFlow)
 params = BrainFlowInputParams()
-board_id = BoardIds.SYNTHETIC_BOARD.value  # Use Synthetic Board for testing
-
-# Define EEG Electrodes
-attention_channels = [1, 2, 3, 4]  # Fp1, Fp2, F3, F4 (Frontal)
-task_engagement_channels = [5, 6]  # C3, C4 (Central)
-eeg_channels = attention_channels + task_engagement_channels
-
-# Sampling Rate
-sampling_rate = BoardShim.get_sampling_rate(board_id)
-
-# Initialize EEG Board
+board_id = BoardIds.SYNTHETIC_BOARD.value  # Change this to your actual board ID
 board = BoardShim(board_id, params)
+sampling_rate = BoardShim.get_sampling_rate(board_id)  # EEG Sampling rate
+eeg_channels = BoardShim.get_eeg_channels(board_id)  # EEG Channels list
+
+# Prepare EEG session
 board.prepare_session()
 board.start_stream()
-print("BrainFlow Synthetic Board started. Streaming EEG data!")
+print("EEG Data Streaming Started!")
 
-# Experiment Parameters
-num_seconds = 10  # Collect 10 seconds of data
-collected_data = {ch: [] for ch in eeg_channels}
+# Experiment Setup (PsychoPy)
+window = visual.Window(size=(1920, 1080), color="black", fullscr=False, allowGUI=False, units="norm")
 
-# Live Plot Setup
-plt.ion()
-fig, ax = plt.subplots(len(eeg_channels), 1, figsize=(10, 6), sharex=True)
-lines = []
-for i, ch in enumerate(eeg_channels):
-    lines.append(ax[i].plot([], [], label=f"EEG {ch}")[0])
-    ax[i].set_xlim(0, num_seconds * sampling_rate)  # Set x-axis for time
-    ax[i].set_ylim(-100, 100)  # Adjust signal range
-    ax[i].legend(loc="upper right")
+# Function to display a message
+def display_message(text, duration=3):
+    message = visual.TextStim(window, text=text, color="white", height=0.08)
+    message.draw()
+    window.flip()
+    core.wait(duration)
 
-# EEG Data Collection Loop
-start_time = time.time()
-time_series = np.arange(0, num_seconds * sampling_rate)  # Time axis
-buffer_size = num_seconds * sampling_rate  # Storage buffer
+# Baseline Recording (Resting State)
+def run_baseline():
+    print("Running Baseline Recording (30s)...")
+    display_message("+", duration=30)  # Fixation cross for 30s
+    return board.get_board_data()  # Collect EEG data
 
-while time.time() - start_time < num_seconds:
-    data = board.get_board_data()
+# Pre-trial EEG Recording (Capturing Preparatory Activity)
+def run_pre_trial():
+    print("Running Pre-Trial EEG (10s)...")
+    display_message("Get ready...", duration=10)  # 10-second pre-trial wait
+    return board.get_board_data()  # Collect EEG data
+
+# Self-Report Validation
+def run_self_report():
+    display_message("How focused were you? (1 = Distracted, 5 = Focused)", duration=2)
+    response = event.waitKeys(maxWait=10, keyList=['1', '2', '3', '4', '5'])
+    return response[0] if response else "No Response"
+
+# Task Conditions
+def run_high_attention():
+    print("Running High Attention Task...")
+    run_pre_trial()
+
+    article_text = (
+        "It has been suggested that people attend to others’ actions in the service of forming impressions of their "
+        "underlying dispositions. If so, it follows that in considering others’ morally relevant actions, social perceivers "
+        "should be responsive to accompanying cues that help illuminate actors’ underlying moral character. This article "
+        "examines one relevant cue that can characterize any decision process: the speed with which the decision is made. "
+        "Two experiments show that actors who make an immoral decision quickly (vs. slowly) are evaluated more negatively. "
+        "In contrast, actors who arrive at a moral decision quickly (vs. slowly) receive particularly positive moral character "
+        "evaluations. Quick decisions carry this signal value because they are assumed to reflect certainty in the decision, "
+        "which in turn signals that more unambiguous motives drove the behavior, explaining the more polarized moral character "
+        "evaluations."
+    )
     
-    if data.shape[1] > 0:
-        eeg_data = data[eeg_channels, -sampling_rate:]  # Get latest samples
+    article_stim = visual.TextStim(window, text=article_text, color="white", height=0.06, wrapWidth=1.5, alignText="left")
+    article_stim.draw()
+    window.flip()
+    core.wait(60)  # Display article for 60 seconds
+    
+    return board.get_board_data()
+
+# Condition 2: Low Attention (Listening to Music)
+def run_low_attention():
+    print("Running Low Attention Task...")
+    run_pre_trial()
+
+    music = sound.Sound("lofi_jazz_background_music.wav")
+    music.play()
+
+    display_message("+", duration=60)  # Fixation cross while listening
+    
+    music.stop()
+    return board.get_board_data()
+
+# Condition 3: Fatigue (Continuous Arithmetic)
+def run_fatigue():
+    print("Running Fatigue Task...")
+    run_pre_trial()
+
+    start_time = core.getTime()
+    while core.getTime() - start_time < 60:
+        problem_text = f"{random.randint(10, 99)} + {random.randint(10, 99)} = ?"
+        problem_stim = visual.TextStim(window, text=problem_text, color="white", height=0.1)
+        problem_stim.draw()
+        window.flip()
+        core.wait(5)
+
+    return board.get_board_data()
+
+# Generate Unique Filename (Timestamped)
+def generate_unique_filename():
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"eeg_experiment_{timestamp}.npy"
+
+# Generate Unique Filename (Trial Numbering)
+def generate_trial_filename():
+    existing_files = [f for f in os.listdir() if f.startswith("eeg_experiment_trial_") and f.endswith(".npy")]
+    trial_numbers = [int(f.split("_")[-1].split(".")[0]) for f in existing_files if f.split("_")[-1].split(".")[0].isdigit()]
+    next_trial = max(trial_numbers) + 1 if trial_numbers else 1  # Start at 1 if no files exist
+    return f"eeg_experiment_trial_{next_trial:03d}.npy"
+
+# Experiment Loop
+def run_experiment():
+    conditions = ['HighAttention', 'LowAttention', 'Fatigue']
+    random.shuffle(conditions)  # Randomize condition order
+    all_data = {}  # Store EEG data
+
+    for condition in conditions:
+        print(f"Starting Condition: {condition}")
+
+        # Baseline Recording
+        baseline_data = run_baseline()
+
+        # Run the selected condition
+        if condition == 'HighAttention':
+            task_data = run_high_attention()
+        elif condition == 'LowAttention':
+            task_data = run_low_attention()
+        elif condition == 'Fatigue':
+            task_data = run_fatigue()
+
+        # Self-report validation
+        focus_rating = run_self_report()
         
-        # Append to each channel's data buffer
-        for i, ch in enumerate(eeg_channels):
-            collected_data[ch].extend(eeg_data[i, :].tolist())
-            collected_data[ch] = collected_data[ch][-buffer_size:]  # Keep only last buffer_size points
+        # Save data
+        if condition not in all_data:
+            all_data[condition] = {"baseline": [], "trials": [], "self_reports": []}
 
-            # Update Plot Data
-            lines[i].set_xdata(time_series[:len(collected_data[ch])])
-            lines[i].set_ydata(collected_data[ch])
-    
-        plt.pause(0.01)
+        all_data[condition]["baseline"].append(baseline_data)
+        all_data[condition]["trials"].append(task_data)
+        all_data[condition]["self_reports"].append(focus_rating)
 
-# Stop EEG stream
+        # Break between conditions
+        display_message("Take a short break (10s)...", duration=10)
+
+    return all_data
+
+# Run the experiment and collect EEG data
+eeg_results = run_experiment()
+
+# Choose how to save: Timestamped or Numbered
+use_timestamps = True  # Set to False to use trial numbering
+
+if use_timestamps:
+    filename = generate_unique_filename()
+else:
+    filename = generate_trial_filename()
+
+# Stop EEG streaming and save data
 board.stop_stream()
 board.release_session()
+np.save(filename, eeg_results)
+print(f"EEG data saved as {filename}!")
 
-# Save collected data
-eeg_data_array = np.array([collected_data[ch] for ch in eeg_channels])
-np.save("eeg_data.npy", eeg_data_array)
-print("EEG data saved to eeg_data.npy")
+# End Experiment
+display_message("Thank you for participating!", duration=4)
+window.close()
+core.quit()
 
-# Show final plot
-plt.ioff()
-plt.show()
 
-print("EEG data collection completed successfully!")
+
