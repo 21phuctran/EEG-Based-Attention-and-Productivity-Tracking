@@ -9,7 +9,7 @@ from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds
 
 # EEG Setup (BrainFlow)
 params = BrainFlowInputParams()
-params.serial_port = "COM3"  # Adjust as needed for your system
+params.serial_port = "COM7"  # Adjust as needed for your system
 board_id = BoardIds.CYTON_BOARD.value  # OpenBCI Cyton Board
 board = BoardShim(board_id, params)
 
@@ -18,13 +18,13 @@ eeg_channels = BoardShim.get_eeg_channels(board_id)
 
 # Define selected channels (8 channels)
 selected_channels = {
-    "Fp1": eeg_channels[0],  # Frontal - attention
-    "Fp2": eeg_channels[1],  # Frontal - attention
+    "Fp1": eeg_channels[0],  # Frontal - attention X
+    "Fp2": eeg_channels[1],  # Frontal - attention X
     "F3": eeg_channels[2],   # Frontal - cognitive work
-    "F4": eeg_channels[3],   # Frontal - cognitive work
+    "F4": eeg_channels[3],   # Frontal - cognitive work X
     "C3": eeg_channels[4],   # Central - task engagement
-    "C4": eeg_channels[5],   # Central - task engagement
-    "Cz": eeg_channels[6],   # Central midline - cognitive control
+    "C4": eeg_channels[5],   # Central - task engagement X
+    "Cz": eeg_channels[6],   # Central midline - cognitive control X
     "Pz": eeg_channels[7]    # Parietal - fatigue detection
 }
 
