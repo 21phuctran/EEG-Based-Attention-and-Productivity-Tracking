@@ -29,8 +29,8 @@ selected_channels = {
 }
 
 # Define ground and reference channels
-ground_channel = "01"  
-reference_channel = "02"
+ground_channel = "O1"  #GND
+reference_channel = "O2" #REF
 
 # Start EEG session
 board.prepare_session()
