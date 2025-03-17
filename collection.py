@@ -9,7 +9,8 @@ from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds
 
 # EEG Setup (BrainFlow)
 params = BrainFlowInputParams()
-board_id = BoardIds.SYNTHETIC_BOARD.value  # Change this to your actual board ID
+params.serial_port = "COM3" #put when open
+board_id = BoardIds.CYTON_BOARD.value  # Change this to your actual board ID
 board = BoardShim(board_id, params)
 sampling_rate = BoardShim.get_sampling_rate(board_id)  # EEG Sampling rate
 eeg_channels = BoardShim.get_eeg_channels(board_id)  # EEG Channels list
