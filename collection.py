@@ -18,14 +18,14 @@ eeg_channels = BoardShim.get_eeg_channels(board_id)
 
 # Define selected channels (8 channels)
 selected_channels = {
-    "Fp1": eeg_channels[0],  # Frontal - attention X
-    "Fp2": eeg_channels[1],  # Frontal - attention X
-    "F3": eeg_channels[2],   # Frontal - cognitive work
-    "F4": eeg_channels[3],   # Frontal - cognitive work X
-    "C3": eeg_channels[4],   # Central - task engagement
-    "C4": eeg_channels[5],   # Central - task engagement X
-    "Cz": eeg_channels[6],   # Central midline - cognitive control X
-    "Pz": eeg_channels[7]    # Parietal - fatigue detection
+    "Fp1": eeg_channels[1 - 1],  # Frontal - attention X
+    "Fp2": eeg_channels[2 - 1],  # Frontal - attention X
+    "F3": eeg_channels[3 - 1],   # Frontal - cognitive work
+    "F4": eeg_channels[4 - 1],   # Frontal - cognitive work X
+    "C3": eeg_channels[5 - 1],   # Central - task engagement
+    "C4": eeg_channels[6 - 1],   # Central - task engagement X
+    "Cz": eeg_channels[7 - 1],   # Central midline - cognitive control X
+    "Pz": eeg_channels[8 - 1]    # Parietal - fatigue detection
 }
 
 # Define ground and reference channels
@@ -76,8 +76,15 @@ def run_high_attention():
     run_pre_trial()
 
     article_text = (
-        "Cognitive research shows that decision speed affects moral evaluations. Quick decisions suggest confidence, "
-        "leading to more extreme moral character judgments..."
+        "It has been suggested that people attend to others’ actions in the service of forming impressions of their "
+        "underlying dispositions. If so, it follows that in considering others’ morally relevant actions, social perceivers "
+        "should be responsive to accompanying cues that help illuminate actors’ underlying moral character. This article "
+        "examines one relevant cue that can characterize any decision process: the speed with which the decision is made. "
+        "Two experiments show that actors who make an immoral decision quickly (vs. slowly) are evaluated more negatively. "
+        "In contrast, actors who arrive at a moral decision quickly (vs. slowly) receive particularly positive moral character "
+        "evaluations. Quick decisions carry this signal value because they are assumed to reflect certainty in the decision, "
+        "which in turn signals that more unambiguous motives drove the behavior, explaining the more polarized moral character "
+        "evaluations."
     )
     
     article_stim = visual.TextStim(window, text=article_text, color="white", height=0.06, wrapWidth=1.5, alignText="left")
@@ -110,6 +117,7 @@ def run_fatigue():
         problem_text = f"{random.randint(10, 99)} + {random.randint(10, 99)} = ?"
         problem_stim = visual.TextStim(window, text=problem_text, color="white", height=0.1)
         problem_stim.draw()
+
         window.flip()
         core.wait(5)
 
